@@ -1,0 +1,50 @@
+import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns  # Import seaborn
+
+# Function to plot weekly gains of a stock
+def plot_weekly_gains(ticker):
+    # Download stock data for the last 5 years from Yahoo
+    stock_data = yf.download(ticker, period="5y", interval="1d")
+
+    # Use ffill to fill missing values
+    stock_data['Week_Close'] = stock_data['Close'].resample('W-FRI').last()
+
+    # Calculate weekly percentage change
+    stock_data['Weekly_Gain'] = stock_data['Week_Close'].pct_change() * 100
+
+    # --- Changes to handle MultiIndex ---
+    # Convert the MultiIndex columns to a single level index with tuples
+    stock_data.columns = stock_data.columns.to_flat_index()
+    # Convert the tuple column names to strings and remove any leading/trailing whitespace
+    stock_data.columns = [' '.join(col).strip() for col in stock_data.columns]
+    # --- End of changes ---
+
+    # Rename the column if needed
+    if 'Weekly_Gain' not in stock_data.columns:
+        # Find the column containing 'Weekly_Gain' and rename it
+        for col in stock_data.columns:
+            if 'Weekly_Gain' in col:
+                stock_data = stock_data.rename(columns={col: 'Weekly_Gain'})
+                break
+
+    # --- Filter to keep only Friday data ---
+    stock_data = stock_data[stock_data.index.weekday == 4]  # 4 represents Friday
+    # --- End of filtering ---
+
+    # Now call dropna:
+    stock_data.dropna(subset=['Weekly_Gain'], inplace=True)
+
+    # Plot the weekly gains
+    plt.figure(figsize=(6, 6))
+    sns.histplot(stock_data['Weekly_Gain'], kde=True, color='blue')  # Use histplot for distribution
+    plt.title(f'Distribution of Weekly Gains of {ticker} Over the Last 5 Years')
+    plt.xlabel('Weekly Gain (%)')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+# Example usage: Plot weekly gains for Apple (AAPL)
+plot_weekly_gains('AAPL')      
