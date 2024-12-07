@@ -1,0 +1,39 @@
+import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def plot_gains(ticker, frequency='weekly'):
+    # Download stock data
+    stock_data = yf.download(ticker, period="10y", interval="1d")
+
+    # Resample and calculate gains based on frequency
+    if frequency == 'weekly':
+        stock_data['Gain'] = stock_data['Close'].resample('W-FRI').last().pct_change() * 100
+        stock_data = stock_data[stock_data.index.weekday == 4]  # Filter for Fridays
+    elif frequency == 'monthly':
+        # Group by month and year, then calculate monthly gains
+        stock_data['Month'] = stock_data.index.month
+        stock_data['Year'] = stock_data.index.year
+        stock_data = stock_data.groupby(['Year', 'Month'])['Close'].last().reset_index()
+        stock_data['Gain'] = stock_data['Close'].pct_change() * 100
+
+    # Handle MultiIndex and rename columns
+    stock_data.columns = stock_data.columns.to_flat_index()
+    stock_data.columns = [' '.join(col).strip() for col in stock_data.columns]
+
+    # Drop missing values and plot
+    stock_data.dropna(subset=['Gain'], inplace=True)
+
+    plt.figure(figsize=(6, 6))
+    sns.histplot(stock_data['Gain'], kde=True, color='blue', binwidth=1)  # Set binwidth to 1
+    plt.title(f'Distribution of {frequency.capitalize()} Gains of {ticker} Over the Last 5 Years')
+    plt.xlabel(f'{frequency.capitalize()} Gain (%)')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+# Example usage:
+plot_gains('AMZN', frequency='weekly')  # Plot weekly gains
+plot_gains('AMZN', frequency='monthly')  # Plot monthly gains
